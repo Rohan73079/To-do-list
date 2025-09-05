@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Smart To-Do List — Animated</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' }</script>
+
+  <!-- Flatpickr -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <style>
+    /* Background animation */
+    body {
+      background: linear-gradient(270deg, #1e3a8a, #9333ea, #e11d48);
+      background-size: 600% 600%;
+      animation: gradientShift 20s ease infinite;
+    }
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Fade + slide animation for tasks */
+    .task-item {
+      opacity: 0;
+      transform: translateY(-10px);
+      animation: fadeInUp 0.4s forwards;
+    }
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Smooth hover glow */
+    button, select {
+      transition: all 0.3s ease;
+    }
+    button:hover, select:hover {
+      transform: scale(1.03);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    /* Make select text centered across browsers */
+    select.text-center { text-align-last: center; -moz-text-align-last: center; -webkit-text-align-last: center; }
+  </style>
+</head>
+<body class="dark:bg-gray-900 min-h-screen flex items-center justify-center p-6 transition-colors">
+  <div class="max-w-4xl w-full bg-white/80 dark:bg-gray-800/80 backdrop-blur shadow-2xl rounded-xl p-6 text-gray-900 dark:text-gray-100 transition-colors">
+    
+    <!-- header -->
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold text-blue-600 dark:text-blue-400 animate-pulse">Smart To-Do List</h1>
+      <div class="flex items-center gap-2">
+        <button id="export-btn" class="px-3 py-1 rounded bg-green-500 hover:bg-green-600 text-white">Export</button>
+        <input type="file" id="import-file" class="hidden" accept=".json">
+        <button id="import-btn" class="px-3 py-1 rounded bg-purple-500 hover:bg-purple-600 text-white">Import</button>
+        <button id="theme-toggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700">🌙</button>
+      </div>
+    </div>
+
+    <!-- form -->
+    <form id="add-task-form" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" novalidate>
+      <input id="task-input" type="text" placeholder="Task name..." autocomplete="off"
+             class="border rounded-lg p-2 w-full dark:bg-gray-700 dark:border-gray-600" required>
+
+      <input id="due-date-input" type="date" class="border rounded-lg p-2 w-full dark:bg-gray-700 dark:border-gray-600">
+
+      <!-- TIME inputs -->
+      <input id="due-time-from-input" type="text" placeholder="From" autocomplete="off" readonly
+             class="border rounded-lg p-2 w-full dark:bg-gray-700 dark:border-gray-600 cursor-pointer">
+
+      <input id="due-time-to-input" type="text" placeholder="To" autocomplete="off" readonly
+             class="border rounded-lg p-2 w-full dark:bg-gray-700 dark:border-gray-600 cursor-pointer">
+
+      <!-- centered priority -->
+      <select id="priority-input" class="border rounded-lg p-2 w-full text-center text-gray-500 dark:bg-gray-700 dark:border-gray-600">
+        <option value="" disabled selected>Priority</option>
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+      </select>
+
+      <button type="submit"
+              class="bg-blue-500 hover:bg-blue-600 text-white rounded-lg p-2 w-full md:col-span-2">Add Task</button>
+    </form>
+
+    <!-- filters -->
+    <div class="flex flex-wrap gap-2 justify-between items-center mb-4">
+      <div class="flex gap-2">
+        <button class="filter-btn active bg-blue-100 text-blue-600 px-3 py-1 rounded dark:bg-blue-900 dark:text-blue-200" data-filter="all">All</button>
+        <button class="filter-btn bg-gray-100 text-gray-700 px-3 py-1 rounded dark:bg-gray-700 dark:text-gray-300" data-filter="pending">Pending</button>
+        <button class="filter-btn bg-gray-100 text-gray-700 px-3 py-1 rounded dark:bg-gray-700 dark:text-gray-300" data-filter="completed">Completed</button>
+      </div>
+
+      <div class="flex gap-2 items-center">
+        <select id="sort-input" class="border rounded-lg p-2 dark:bg-gray-700 dark:border-gray-600 text-center">
+          <option value="default">Sort By</option>
+          <option value="date">Due Date</option>
+          <option value="time">From Time</option>
+          <option value="priority">Priority</option>
+        </select>
+        <input id="search-input" type="text" placeholder="Search..." class="border rounded-lg p-2 w-48 dark:bg-gray-700 dark:border-gray-600">
+      </div>
+    </div>
+
+    <!-- tasks -->
+    <div id="tasks-list">
+      <h2 class="text-xl font-semibold mb-2">Pending Tasks</h2>
+      <ul id="pending-tasks-list" class="space-y-2 mb-6"></ul>
+
+      <h2 class="text-xl font-semibold mb-2">Completed Tasks</h2>
+      <ul id="completed-tasks-list" class="space-y-2"></ul>
+    </div>
+
+    <!-- footer -->
+    <div class="mt-6 flex justify-between text-sm text-gray-600 dark:text-gray-300">
+      <p id="stats"></p>
+      <button id="clear-all" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded">Clear All</button>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Elements
+    const addTaskForm = document.getElementById('add-task-form');
+    const taskInput = document.getElementById('task-input');
+    const dueDateInput = document.getElementById('due-date-input');
+    const dueTimeFromInput = document.getElementById('due-time-from-input');
+    const dueTimeToInput = document.getElementById('due-time-to-input');
+    const priorityInput = document.getElementById('priority-input');
+    const pendingTasksList = document.getElementById('pending-tasks-list');
+    const completedTasksList = document.getElementById('completed-tasks-list');
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    const searchInput = document.getElementById('search-input');
+    const sortInput = document.getElementById('sort-input');
+    const tasksList = document.getElementById('tasks-list');
+    const themeToggle = document.getElementById('theme-toggle');
+    const htmlEl = document.documentElement;
+    const statsEl = document.getElementById('stats');
+    const clearAllBtn = document.getElementById('clear-all');
+    const exportBtn = document.getElementById('export-btn');
+    const importBtn = document.getElementById('import-btn');
+    const importFile = document.getElementById('import-file');
+
+    // State
+    let tasks = JSON.parse(localStorage.getItem('tasks') || "[]");
+    let currentFilter = 'all';
+    let currentSort = 'default';
+
+    // Theme
+    if (localStorage.getItem('theme') === 'dark') {
+      htmlEl.classList.add('dark');
+      themeToggle.textContent = "☀️";
+    }
+    themeToggle.addEventListener('click', () => {
+      htmlEl.classList.toggle('dark');
+      if (htmlEl.classList.contains('dark')) {
+        localStorage.setItem('theme', 'dark'); themeToggle.textContent = "☀️";
+      } else {
+        localStorage.setItem('theme', 'light'); themeToggle.textContent = "🌙";
+      }
+    });
+
+    // Helper: parse "h:i K" (e.g. "9:05 PM") to minutes since midnight
+    function parseTimeToMinutes(t) {
+      if (!t) return null;
+      // Accept formats like "9:05 PM", "09:05 PM"
+      const m = t.match(/^\s*(\d{1,2}):(\d{2})\s*([AaPp][Mm])\s*$/);
+      if (!m) return null;
+      let hh = parseInt(m[1], 10);
+      const mm = parseInt(m[2], 10);
+      const ampm = m[3].toUpperCase();
+      if (ampm === 'PM' && hh !== 12) hh += 12;
+      if (ampm === 'AM' && hh === 12) hh = 0;
+      return hh * 60 + mm;
+    }
+
+    // Save/load
+    const saveTasks = () => localStorage.setItem('tasks', JSON.stringify(tasks));
+
+    // Stats
+    const updateStats = () => {
+      const total = tasks.length;
+      const completed = tasks.filter(t => t.completed).length;
+      const pending = total - completed;
+      statsEl.textContent = `Total: ${total} | Completed: ${completed} | Pending: ${pending}`;
+    };
+
+    // Render tasks with filter/search/sort
+    const renderTasks = () => {
+      pendingTasksList.innerHTML = '';
+      completedTasksList.innerHTML = '';
+
+      const q = (searchInput.value || '').toLowerCase();
+      let filtered = tasks.filter(t =>
+        (t.text || '').toLowerCase().includes(q) &&
+        (currentFilter === 'all' || (currentFilter === 'pending' && !t.completed) || (currentFilter === 'completed' && t.completed))
+      );
+
+      // Sort
+      if (currentSort === 'date') {
+        filtered.sort((a,b) => (a.dueDate||'').localeCompare(b.dueDate||''));
+      } else if (currentSort === 'time') {
+        filtered.sort((a,b) => {
+          const A = parseTimeToMinutes(a.dueTimeFrom) || 0;
+          const B = parseTimeToMinutes(b.dueTimeFrom) || 0;
+          return A - B;
+        });
+      } else if (currentSort === 'priority') {
+        const order = { high: 1, medium: 2, low: 3, '': 4 };
+        filtered.sort((a,b) => (order[a.priority]||4) - (order[b.priority]||4));
+      }
+
+      filtered.forEach(task => {
+        const li = document.createElement('li');
+        li.className = `task-item bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow-sm flex justify-between items-center border-l-4 ${
+          task.priority === 'high' ? 'border-red-500' : task.priority === 'medium' ? 'border-yellow-500' : 'border-green-500'
+        }`;
+        li.dataset.id = task.id;
+        li.innerHTML = `
+          <div class="flex items-center gap-3">
+            <input type="checkbox" ${task.completed ? "checked" : ""}>
+            <div>
+              <span class="task-title font-medium ${task.completed ? 'line-through text-gray-500 dark:text-gray-400' : ''}">${task.text}</span>
+              <div class="text-sm text-gray-500 dark:text-gray-300">${task.dueDate || ''} ${task.dueTimeFrom || ''}${task.dueTimeFrom && task.dueTimeTo ? ' - ' + task.dueTimeTo : ''}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded">${task.priority || ''}</span>
+            <button class="delete-btn text-red-500 ml-2">X</button>
+          </div>`;
+        if (task.completed) completedTasksList.appendChild(li);
+        else pendingTasksList.appendChild(li);
+      });
+
+      updateStats();
+    };
+
+    // Initialize Flatpickr for the two time inputs:
+    const fpCommon = {
+      enableTime: true,
+      noCalendar: true,
+      dateFormat: "h:i K",   // 12-hour format with AM/PM
+      time_24hr: false,
+      allowInput: true,
+      clickOpens: true,
+      disableMobile: true,   // force flatpickr on mobile (prevents native)
+      defaultDate: null,
+      onReady: function(selectedDates, dateStr, instance) {
+        // keep empty if no value chosen
+        if (!instance.input.value) instance.clear();
+      },
+      onOpen: function(selectedDates, dateStr, instance) {
+        // if input is empty, ensure flatpickr doesn't prefill current time
+        if (!instance.input.value) instance.clear();
+      },
+      onChange: function(selectedDates, dateStr, instance) {
+        // mark that user selected a value
+        if (instance.input) {
+          if (instance.input.value) instance.input.setAttribute('data-has-value', '1');
+          else instance.input.removeAttribute('data-has-value');
+        }
+      }
+    };
+
+    flatpickr("#due-time-from-input", Object.assign({}, fpCommon));
+    flatpickr("#due-time-to-input", Object.assign({}, fpCommon));
+
+    // Form submit — validate From < To
+    addTaskForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const text = (taskInput.value || '').trim();
+      if (!text) return alert("Please enter a task!");
+
+      const fromStr = (dueTimeFromInput.value || '').trim();
+      const toStr   = (dueTimeToInput.value || '').trim();
+
+      // if both provided, validate
+      if (fromStr && toStr) {
+        const fromM = parseTimeToMinutes(fromStr);
+        const toM = parseTimeToMinutes(toStr);
+        if (fromM === null || toM === null) {
+          alert("Please enter times in format like 9:05 AM");
+          return;
+        }
+        // if 'to' might be next day — user expectation unclear; here we require to > from for same day
+        if (fromM >= toM) {
+          alert("Please choose a To time later than From time.");
+          return;
+        }
+      }
+
+      const newTask = {
+        id: Date.now(),
+        text,
+        completed: false,
+        dueDate: dueDateInput.value || '',
+        dueTimeFrom: fromStr || '',
+        dueTimeTo: toStr || '',
+        priority: priorityInput.value || ''
+      };
+
+      tasks.unshift(newTask);
+      saveTasks();
+      renderTasks();
+
+      // reset form fields (keep placeholders)
+      taskInput.value = '';
+      dueDateInput.value = new Date().toISOString().split('T')[0];
+      dueTimeFromInput.value = '';
+      dueTimeFromInput.removeAttribute('data-has-value');
+      dueTimeToInput.value = '';
+      dueTimeToInput.removeAttribute('data-has-value');
+      priorityInput.selectedIndex = 0; // resets to "Priority"
+    });
+
+    // complete/delete handlers
+    tasksList.addEventListener('click', e => {
+      if (e.target.type === 'checkbox') {
+        const id = +e.target.closest('li').dataset.id;
+        const t = tasks.find(x => x.id === id);
+        if (t) t.completed = !t.completed;
+        saveTasks(); renderTasks();
+      }
+      if (e.target.classList.contains('delete-btn')) {
+        const id = +e.target.closest('li').dataset.id;
+        tasks = tasks.filter(x => x.id !== id);
+        saveTasks(); renderTasks();
+      }
+    });
+
+    // filters
+    filterButtons.forEach(btn => btn.addEventListener('click', () => {
+      filterButtons.forEach(b => b.classList.remove('active', 'bg-blue-100', 'text-blue-600', 'dark:bg-blue-900', 'dark:text-blue-200'));
+      btn.classList.add('active', 'bg-blue-100', 'text-blue-600', 'dark:bg-blue-900', 'dark:text-blue-200');
+      currentFilter = btn.dataset.filter;
+      renderTasks();
+    }));
+
+    // search & sort
+    searchInput.addEventListener('input', renderTasks);
+    sortInput.addEventListener('change', e => { currentSort = e.target.value; renderTasks(); });
+
+    // clear all
+    clearAllBtn.addEventListener('click', () => {
+      if (confirm("Clear all tasks?")) {
+        tasks = []; saveTasks(); renderTasks();
+      }
+    });
+
+    // export / import
+    exportBtn.addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'tasks.json'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    importBtn.addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const loaded = JSON.parse(reader.result);
+          if (!Array.isArray(loaded)) throw new Error("Invalid format");
+          tasks = loaded; saveTasks(); renderTasks();
+        } catch (err) {
+          alert("Invalid JSON file");
+          console.error(err);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // init
+    dueDateInput.value = new Date().toISOString().split('T')[0];
+    renderTasks();
+  });
+  </script>
+</body>
+</html>
