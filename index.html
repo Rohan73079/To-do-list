@@ -15,16 +15,97 @@
 
   <style>
     /* Background animation */
-    body {
-      background: linear-gradient(270deg, #1e3a8a, #9333ea, #e11d48);
-      background-size: 600% 600%;
-      animation: gradientShift 20s ease infinite;
-    }
-    @keyframes gradientShift {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
+   /* Base background */
+/* Body full height & center */
+body {
+  height: auto;                  /* exact full height */
+  display: grid;                  /* grid centering */
+  place-items: center;           
+  background-color: #111827;      /* dark background */
+  transition: background 0.3s ease;
+  margin: 0; 
+  overflow: scroll;
+  overflow-x: hidden ;
+        
+}
+
+/* Keep card responsive */
+.main-card {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 1rem;                 /* small margin for mobile */
+}
+
+.main-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+}
+
+/* Dark mode card */
+.dark .main-card {
+  background: rgba(20, 20, 20, 0.85); /* darker glass effect */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+
+/* Background subtle movement */
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Animated gradient blobs */
+.bg-blob {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.6;
+  z-index: -1;
+  animation: blobMove 25s ease-in-out infinite alternate;
+}
+
+.bg-blob-1 {
+  background: #3b82f6; /* blue */
+  top: -150px;
+  left: -150px;
+}
+.bg-blob-2 {
+  background: #8200fc; /* purple */
+  bottom: -200px;
+  right: -100px;
+}
+.bg-blob-3 {
+  background: #f43f5e; /* pink/red */
+  top: 50%;
+  left: 60%;
+}
+
+/* Blob floating movement */
+@keyframes blobMove {
+  0%   { transform: translate(0,0) scale(1); }
+  100% { transform: translate(100px, -80px) scale(1.2); }
+}
+
+/* Glassmorphism card */
+.main-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  overflow: hidden;
+  
+}
+.main-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+}
+
 
     /* Fade + slide animation for tasks */
     .task-item {
@@ -50,10 +131,28 @@
 
     /* Make select text centered across browsers */
     select.text-center { text-align-last: center; -moz-text-align-last: center; -webkit-text-align-last: center; }
+
+    /* Dark mode background */
+html.dark body {
+  background: linear-gradient(135deg, #0f172a, #1e293b, #334155);
+  background-size: 300% 300%;
+  animation: gradientFlow 20s ease infinite;
+}
+
+/* Dark mode blobs */
+html.dark .bg-blob-1 { background: #2563eb; } /* brighter blue */
+html.dark .bg-blob-2 { background: #7c3aed; } /* brighter purple */
+html.dark .bg-blob-3 { background: #e11d48; } /* bright red/pink */
+
   </style>
 </head>
-<body class="dark:bg-gray-900 min-h-screen flex items-center justify-center p-6 transition-colors">
-  <div class="max-w-4xl w-full bg-white/80 dark:bg-gray-800/80 backdrop-blur shadow-2xl rounded-xl p-6 text-gray-900 dark:text-gray-100 transition-colors">
+<body class="dark:bg-gray-900 min-h-screen flex items-center justify-center transition-colors">
+  <div class="bg-blob bg-blob-1"></div>
+<div class="bg-blob bg-blob-2"></div>
+<div class="bg-blob bg-blob-3"></div>
+
+<div class="main-card max-w-4xl w-full p-6 text-gray-900 dark:text-gray-100 transition-colors">
+
     
     <!-- header -->
     <div class="flex justify-between items-center mb-6">
